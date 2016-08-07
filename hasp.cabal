@@ -1,0 +1,19 @@
+name:                hasp
+version:             0.1.0.0
+synopsis:            An interpreter for a variant of Lisp written in Haskell
+description:         Please see README.md
+homepage:            https://github.com/aldld/hasp
+license:             MIT
+license-file:        LICENSE
+author:              Eric Bannatyne
+maintainer:          eric.bannatyne@gmail.com
+copyright:           2016 Eric Bannatyne
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable hasp
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
