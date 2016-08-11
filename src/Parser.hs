@@ -31,10 +31,8 @@ squashTwo f (first:rest) =
         Nothing -> first:rest
         Just second -> push (first `f` second) remain
 
--- It would be nice if the type of this function could be specialized so that the second argument could only be a List
--- Expr. Then it might be possible to check that constraint at compile time.
-appendTo :: Expr -> Expr -> Expr
-x `appendTo` (List lst) = List (lst ++ [x])
+appendTo :: [Expr] -> [Expr] -> [Expr]
+x `appendTo` lst = lst ++ [List x]
 
 integerPat = "^-?[0-9]+$"
 floatPat = "^-?[0-9]+\\.[0-9]+$" -- TODO: Support scientific notation.
@@ -68,7 +66,6 @@ parseAtom token
         parseFailure = Left (SyntaxError ("Invalid atomic symbol: " ++ token))
 
 
--- Just testing this out. TODO: Make this pure (and actually work).
 -- From some basic preliminary testing, this seems to work on a few valid examples that I've tried, however it fails to
 -- properly recognize certain syntax errors.
 
@@ -80,18 +77,18 @@ parseAtom token
 --            below it.
 --     other: An atomic value - append it to the list on top of the stack. If the stack is empty then we have a loose
 --            atom, so just return it.
-traverseExprTokens :: Stack Expr -> [Expr] -> [Token] -> Either SyntaxError [Expr]
+traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> Either SyntaxError [Expr]
 traverseExprTokens [] acc [] = Right acc
 traverseExprTokens (top:rest) _ [] = Left (SyntaxError "Missing )")
 
 traverseExprTokens stack acc ("(":tokens) = 
-    traverseExprTokens (push (List []) stack) acc tokens
+    traverseExprTokens (push [] stack) acc tokens
 
 traverseExprTokens [] acc (")":tokens) = Left (SyntaxError "Extra )")
 traverseExprTokens (top:[]) acc (")":tokens) =
-    traverseExprTokens [] (acc ++ [top]) tokens
+    traverseExprTokens [] (acc ++ [List top]) tokens
 traverseExprTokens (top:rest) acc (")":tokens) =
-    traverseExprTokens (squashTwo (appendTo) (top:rest)) acc tokens
+    traverseExprTokens (squashTwo appendTo (top:rest)) acc tokens
 
 traverseExprTokens [] acc (atom:tokens) =
     let maybeVal = parseAtom atom
@@ -102,7 +99,7 @@ traverseExprTokens (top:rest) acc (atom:tokens) =
     let maybeVal = parseAtom atom
     in  case maybeVal of
             Left err  -> Left err
-            Right val -> traverseExprTokens (push (val `appendTo` top) rest) acc tokens
+            Right val -> traverseExprTokens (push (top ++ [val]) rest) acc tokens
 
 parseExprs :: [Token] -> Either SyntaxError [Expr]
 parseExprs = traverseExprTokens [] []
