@@ -3,6 +3,9 @@ module Hasp
 , initRepl
 ) where
 
+import Tokenizer
+import Parser
+
 import System.IO
 import Control.Monad
 
@@ -18,7 +21,9 @@ promptLine prompt = do
 repl :: IO ()
 repl = forever $ do
     line <- promptLine "λ> "
+    let tokens = tokenize line
     putStrLn $ "You typed " ++ line
+    mapM_ putStrLn tokens
 
 -- |Prints a welcome message and initializes the read-eval-print loop.
 initRepl :: IO ()

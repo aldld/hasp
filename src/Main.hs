@@ -7,6 +7,6 @@ import Hasp
 main :: IO ()
 main = do
     args <- getArgs
-    if length args == 0
-        then initRepl  -- No arguments: initialize REPL.
-        else return () -- TODO: Read source from file.
+    case args of
+        [] -> initRepl  -- No arguments: initialize REPL.
+        x:xs -> return ()  -- TODO: Read file input.
