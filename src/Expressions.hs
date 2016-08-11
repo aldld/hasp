@@ -1,18 +1,14 @@
 module Expressions
-( Literal(..)
-, Symbol(..)
+( Symbol(..)
 , Expr(..)
 , VariableName
 ) where
 
-data Literal = StringLiteral String
-             | IntLiteral Int
-             | FloatLiteral Float
-             | BoolLiteral Bool
-             deriving (Show)
-
 type VariableName = String
-data Symbol = Const Literal
+data Symbol = StringLiteral String
+            | IntLiteral Int
+            | FloatLiteral Float
+            | BoolLiteral Bool
             | Var VariableName
             deriving (Show)
 

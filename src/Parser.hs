@@ -1,9 +1,16 @@
-module Parser where
+module Parser
+( parseExprs
+, parseAtom
+, SyntaxError(..)
+, Token
+) where
 
+import Text.Read
+import Text.Regex.Posix
 import Expressions
 
 -- TODO: Have a better error handling mechanism.
-data SyntaxError = SyntaxError String
+data SyntaxError = SyntaxError String deriving (Show)
 
 type Token = String
 
@@ -16,10 +23,6 @@ pop :: Stack a -> (Maybe a, Stack a)
 pop [] = (Nothing, [])
 pop (top:rest) = (Just top, rest)
 
-peek :: Stack a -> Maybe a
-peek [] = Nothing
-peek (top:rest) = Just top
-
 squashTwo :: (a -> a -> a) -> Stack a -> Stack a
 squashTwo f [] = []
 squashTwo f (first:rest) =
@@ -28,39 +31,79 @@ squashTwo f (first:rest) =
         Nothing -> first:rest
         Just second -> push (first `f` second) remain
 
+-- It would be nice if the type of this function could be specialized so that the second argument could only be a List
+-- Expr. Then it might be possible to check that constraint at compile time.
 appendTo :: Expr -> Expr -> Expr
 x `appendTo` (List lst) = List (lst ++ [x])
+
+integerPat = "^-?[0-9]+$"
+floatPat = "^-?[0-9]+\\.[0-9]+$" -- TODO: Support scientific notation.
+boolPat = "^(#t|#f)$"
+stringPat = "^\"([^\"]|\\\")*\"$" -- FIXME: This doesn't actually work!!! e.g. matches strings containing " character.
+varNamePat = "^([a-zA-Z]|-|[!@$%&*_=+|<>/?])([a-zA-Z0-9]|-|[!@$%&*_=+|<>/?])*$" -- There must be a better way.
+
+-- |Parses a (supposedly) atomic expression to determine its type, and checks that it is indeed a legal atom.
+-- TODO: Make this more robust.
+parseAtom :: Token -> Either SyntaxError Expr
+parseAtom token
+    | (token =~ integerPat :: Bool) =
+        let maybeVal = readMaybe token :: Maybe Int
+        in  case maybeVal of
+                Nothing    -> parseFailure
+                Just value -> Right (Atom (IntLiteral value))
+    | (token =~ floatPat :: Bool)   =
+        let maybeVal = readMaybe token :: Maybe Float
+        in  case maybeVal of
+            Nothing    -> parseFailure
+            Just value -> Right (Atom (FloatLiteral value))
+    | (token =~ boolPat :: Bool)    =
+        case token of
+            "#t" -> Right (Atom (BoolLiteral True))
+            "#f" -> Right (Atom (BoolLiteral False))
+            _    -> parseFailure
+    | (token =~ stringPat :: Bool)  = Right (Atom (StringLiteral token))
+    | (token =~ varNamePat :: Bool) = Right (Atom (Var token))
+    | otherwise                     = parseFailure
+    where
+        parseFailure = Left (SyntaxError ("Invalid atomic symbol: " ++ token))
 
 
 -- Just testing this out. TODO: Make this pure (and actually work).
 -- From some basic preliminary testing, this seems to work on a few valid examples that I've tried, however it fails to
 -- properly recognize certain syntax errors.
 
--- Traverses list of tokens from left to right, maintaining a stack to indicate the current nesting level. At each
--- token, the algorithm does the following, depending on the current token.
+-- Traverses list of tokens from left to right, maintaining a stack to indicate the current nesting level in the current
+-- top-level expression, as well as a list of top-level expressions that have been parsed so far. At each token, the
+-- algorithm does the following, depending on the current token.
 --     "(":   Push a new empty list onto the stack.
 --     ")":   Squash top two elements of the stack together, by taking the top and appending it to the list immediately
 --            below it.
 --     other: An atomic value - append it to the list on top of the stack. If the stack is empty then we have a loose
 --            atom, so just return it.
-traverseExprTokens :: Stack Expr -> [Token] -> Expr
-traverseExprTokens [] [] = undefined -- Empty expression
-traverseExprTokens (top:rest) [] =
-    if null rest
-        then top
-        else undefined -- Syntax error: Missing )
+traverseExprTokens :: Stack Expr -> [Expr] -> [Token] -> Either SyntaxError [Expr]
+traverseExprTokens [] acc [] = Right acc
+traverseExprTokens (top:rest) _ [] = Left (SyntaxError "Missing )")
 
-traverseExprTokens stack ("(":tokens) = 
-    traverseExprTokens (push (List []) stack) tokens
+traverseExprTokens stack acc ("(":tokens) = 
+    traverseExprTokens (push (List []) stack) acc tokens
 
-traverseExprTokens [] (")":tokens) = undefined -- Syntax error: Extra )
-traverseExprTokens (top:rest) (")":tokens) =
-    traverseExprTokens (squashTwo (appendTo) (top:rest)) tokens
+traverseExprTokens [] acc (")":tokens) = Left (SyntaxError "Extra )")
+traverseExprTokens (top:[]) acc (")":tokens) =
+    traverseExprTokens [] (acc ++ [top]) tokens
+traverseExprTokens (top:rest) acc (")":tokens) =
+    traverseExprTokens (squashTwo (appendTo) (top:rest)) acc tokens
 
-traverseExprTokens [] (atom:_) = Atom (Var atom) -- Loose atom. Do anything with the remaining tokens?
-traverseExprTokens (top:rest) (atom:tokens) =
-    traverseExprTokens (push ((Atom (Var atom)) `appendTo` top) rest) tokens
+traverseExprTokens [] acc (atom:tokens) =
+    let maybeVal = parseAtom atom
+    in  case maybeVal of
+            Left err  -> Left err
+            Right val -> traverseExprTokens [] (acc ++ [val]) tokens
+traverseExprTokens (top:rest) acc (atom:tokens) =
+    let maybeVal = parseAtom atom
+    in  case maybeVal of
+            Left err  -> Left err
+            Right val -> traverseExprTokens (push (val `appendTo` top) rest) acc tokens
 
-parseExpr :: [Token] -> Expr
-parseExpr = traverseExprTokens []
+parseExprs :: [Token] -> Either SyntaxError [Expr]
+parseExprs = traverseExprTokens [] []
 
