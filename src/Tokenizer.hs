@@ -1,19 +1,54 @@
-module Tokenizer (
-    tokenize
+module Tokenizer
+( tokenize
+, Token
 ) where
 
-import Data.List.Split
+import Error
 
-dropBlanksNoCondense :: Splitter a -> Splitter a
-dropBlanksNoCondense = dropInnerBlanks . dropInitBlank . dropFinalBlank
+type Token = String
 
-whitespaceSplit :: String -> [String]
-whitespaceSplit = split (dropBlanksNoCondense . dropDelims $ oneOf " \t\n")
+tokenize :: String -> Either Error [Token]
+tokenize = genTokenSeq False [] ""
 
-parenSplit :: String -> [String]
-parenSplit = split (dropBlanksNoCondense $ oneOf "()")
+keepDelim :: [Token] -> Token -> Char -> String -> Either Error [String]
+keepDelim acc "" char nextInput =
+    genTokenSeq False (acc ++ [[char]]) "" nextInput
+keepDelim acc token char nextInput =
+    genTokenSeq False (acc ++ [token, [char]]) "" nextInput
 
--- TODO: This is dumb and won't work with string literals in source code.
-tokenize :: String -> [String]
-tokenize source =
-    concat . map parenSplit $ whitespaceSplit source
+dropDelim :: [Token] -> Token -> Char -> String -> Either Error [String]
+dropDelim acc "" char nextInput =
+    genTokenSeq False acc "" nextInput
+dropDelim acc token char nextInput =
+    genTokenSeq False (acc ++ [token]) "" nextInput
+
+appendChar :: Bool -> [Token] -> Token -> Char -> String -> Either Error [String]
+appendChar isString acc token char nextInput =
+    genTokenSeq isString acc (token ++ [char]) nextInput
+
+startString :: [Token] -> Token -> Char -> String -> Either Error [String]
+startString acc "" char nextInput =
+    genTokenSeq True acc [char] nextInput
+startString acc token char nextInput =
+    genTokenSeq True (acc ++ [token]) [char] nextInput
+
+endString :: [Token] -> Token -> Char -> String -> Either Error [String]
+endString acc token curChar nextInput =
+    genTokenSeq False (acc ++ [token ++ [curChar]]) "" nextInput
+
+-- TODO: Since we are appending to the end, see if there is a more efficient way to do that.
+genTokenSeq :: Bool -> [Token] -> Token -> String -> Either Error [String]
+genTokenSeq False acc "" "" = Right acc
+genTokenSeq False acc token "" = Right (acc ++ [token])
+
+genTokenSeq True acc token "" = Left (SyntaxError "Unclosed string literal")
+
+genTokenSeq False acc token (curChar:nextInput)
+    | curChar `elem` "()"    = keepDelim acc token curChar nextInput
+    | curChar `elem` " \n\t" = dropDelim acc token curChar nextInput
+    | curChar == '"'         = startString acc token curChar nextInput
+    | otherwise              = appendChar False acc token curChar nextInput
+
+genTokenSeq True acc token (curChar:nextInput)
+    | curChar == '"' = endString acc token curChar nextInput
+    | otherwise      = appendChar True acc token curChar nextInput

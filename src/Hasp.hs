@@ -21,9 +21,11 @@ promptLine prompt = do
 repl :: IO ()
 repl = forever $ do
     line <- promptLine "λ> "
-    let tokens = tokenize line
+    let tokensOrErr = tokenize line
     putStrLn $ "You typed " ++ line
-    mapM_ putStrLn tokens
+    case tokensOrErr of
+        Left err     -> print err
+        Right tokens -> mapM_ putStrLn tokens
 
 -- |Prints a welcome message and initializes the read-eval-print loop.
 initRepl :: IO ()

@@ -1,18 +1,14 @@
 module Parser
 ( parseExprs
 , parseAtom
-, SyntaxError(..)
 , Token
 ) where
 
 import Text.Read
 import Text.Regex.Posix
 import Expressions
-
--- TODO: Have a better error handling mechanism.
-data SyntaxError = SyntaxError String deriving (Show)
-
-type Token = String
+import Error
+import Tokenizer
 
 type Stack a = [a]
 
@@ -42,7 +38,7 @@ varNamePat = "^([a-zA-Z]|-|[!@$%&*_=+|<>/?])([a-zA-Z0-9]|-|[!@$%&*_=+|<>/?])*$" 
 
 -- |Parses a (supposedly) atomic expression to determine its type, and checks that it is indeed a legal atom.
 -- TODO: Make this more robust.
-parseAtom :: Token -> Either SyntaxError Expr
+parseAtom :: Token -> Either Error Expr
 parseAtom token
     | (token =~ integerPat :: Bool) =
         let maybeVal = readMaybe token :: Maybe Int
@@ -77,7 +73,7 @@ parseAtom token
 --            below it.
 --     other: An atomic value - append it to the list on top of the stack. If the stack is empty then we have a loose
 --            atom, so just return it.
-traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> Either SyntaxError [Expr]
+traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> Either Error [Expr]
 traverseExprTokens [] acc [] = Right acc
 traverseExprTokens (top:rest) _ [] = Left (SyntaxError "Missing )")
 
@@ -101,6 +97,6 @@ traverseExprTokens (top:rest) acc (atom:tokens) =
             Left err  -> Left err
             Right val -> traverseExprTokens (push (top ++ [val]) rest) acc tokens
 
-parseExprs :: [Token] -> Either SyntaxError [Expr]
+parseExprs :: [Token] -> Either Error [Expr]
 parseExprs = traverseExprTokens [] []
 
