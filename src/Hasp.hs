@@ -43,7 +43,7 @@ repl env = do
                 Left err     -> outputStrLn $ show err
                 Right tokens ->
                     case parseExprs tokens of
-                        Left err -> outputStrLn $ show err
+                        Left err    -> outputStrLn $ show err
                         Right exprs -> printExprResults env exprs
             repl env -- TODO: Pass updated environment instead of original.
 
