@@ -19,3 +19,5 @@ executable hasp
   build-depends:       base >= 4.7 && < 5
                      , split
                      , regex-posix
+                     , containers
+                     , haskeline
