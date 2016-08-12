@@ -39,8 +39,7 @@ repl env = do
     case maybeLine of
         Nothing   -> return () -- EOF / ctrl+d
         Just line -> do
-            let tokensOrErr = tokenize line
-            case tokensOrErr of
+            case tokenize line of
                 Left err     -> outputStrLn $ show err
                 Right tokens ->
                     case parseExprs tokens of
