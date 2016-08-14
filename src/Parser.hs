@@ -64,7 +64,7 @@ parseAtom token
             "#f" -> Right . Atom $ BoolLiteral False
             _    -> parseFailure
     | (token =~ stringPat :: Bool)  = Right . Atom $ StringLiteral token
-    | (token =~ varNamePat :: Bool) = Right . Atom $ Var token
+    | (token =~ varNamePat :: Bool) = Right . Atom $ Id token
     | otherwise                     = parseFailure
     where
         parseFailure = Left . SyntaxError $ "Invalid atomic symbol `" ++

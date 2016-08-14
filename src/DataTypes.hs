@@ -81,7 +81,7 @@ instance Show HData where
     show (HQuote expr) = "'" ++ (show expr)
     show (HFunc _ _) = "procedure"
 
-data Env = Env (Map.Map String HData)
+data Env = Env (Map.Map Identifier HData)
 
 emptyEnv :: Env
 emptyEnv = Env (Map.empty)

@@ -2,20 +2,20 @@
 -- defining the abstract syntax tree of a hasp program.
 
 module Expressions
-( Symbol(..)
+( Atomic(..)
 , Expr(..)
-, VariableName
+, Identifier
 ) where
 
-type VariableName = String
-data Symbol = StringLiteral String
+type Identifier = String
+data Atomic = StringLiteral String
             | IntLiteral Integer
             | FloatLiteral Float
             | BoolLiteral Bool
-            | Var VariableName
+            | Id Identifier
             deriving (Show)
 
-data Expr = Atom Symbol
+data Expr = Atom Atomic
           | List [Expr]
           | Quote Expr
           deriving (Show)
