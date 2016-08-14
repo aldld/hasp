@@ -52,22 +52,23 @@ parseAtom token
         let maybeVal = readMaybe token :: Maybe Integer
         in  case maybeVal of
                 Nothing    -> parseFailure
-                Just value -> Right (Atom (IntLiteral value))
+                Just value -> Right . Atom $ IntLiteral value
     | (token =~ floatPat :: Bool)   =
         let maybeVal = readMaybe token :: Maybe Float
         in  case maybeVal of
             Nothing    -> parseFailure
-            Just value -> Right (Atom (FloatLiteral value))
+            Just value -> Right . Atom $ FloatLiteral value
     | (token =~ boolPat :: Bool)    =
         case token of
-            "#t" -> Right (Atom (BoolLiteral True))
-            "#f" -> Right (Atom (BoolLiteral False))
+            "#t" -> Right . Atom $ BoolLiteral True
+            "#f" -> Right . Atom $ BoolLiteral False
             _    -> parseFailure
-    | (token =~ stringPat :: Bool)  = Right (Atom (StringLiteral token))
-    | (token =~ varNamePat :: Bool) = Right (Atom (Var token))
+    | (token =~ stringPat :: Bool)  = Right . Atom $ StringLiteral token
+    | (token =~ varNamePat :: Bool) = Right . Atom $ Var token
     | otherwise                     = parseFailure
     where
-        parseFailure = Left (SyntaxError ("Invalid atomic symbol: " ++ token))
+        parseFailure = Left . SyntaxError $ "Invalid atomic symbol `" ++
+            token ++ "`"
 
 -- |Parses hasp source code, represented as a string, producing a list of hasp
 -- expressions, in order from left to right, represnted by their abstract

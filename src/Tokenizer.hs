@@ -14,31 +14,24 @@ tokenize :: String -> Either Error [Token]
 tokenize = genTokenSeq False [] ""
 
 keepDelim :: [Token] -> Token -> Char -> String -> Either Error [String]
-keepDelim acc "" char nextInput =
-    genTokenSeq False (acc ++ [[char]]) "" nextInput
-keepDelim acc token char nextInput =
-    genTokenSeq False (acc ++ [token, [char]]) "" nextInput
+keepDelim acc "" char = genTokenSeq False (acc ++ [[char]]) ""
+keepDelim acc token char = genTokenSeq False (acc ++ [token, [char]]) ""
 
 dropDelim :: [Token] -> Token -> Char -> String -> Either Error [String]
-dropDelim acc "" char nextInput =
-    genTokenSeq False acc "" nextInput
-dropDelim acc token char nextInput =
-    genTokenSeq False (acc ++ [token]) "" nextInput
+dropDelim acc "" char = genTokenSeq False acc "" 
+dropDelim acc token char = genTokenSeq False (acc ++ [token]) ""
 
 appendChar :: Bool -> [Token] -> Token -> Char -> String ->
     Either Error [String]
-appendChar isString acc token char nextInput =
-    genTokenSeq isString acc (token ++ [char]) nextInput
+appendChar isString acc token char = genTokenSeq isString acc (token ++ [char])
 
 startString :: [Token] -> Token -> Char -> String -> Either Error [String]
-startString acc "" char nextInput =
-    genTokenSeq True acc [char] nextInput
-startString acc token char nextInput =
-    genTokenSeq True (acc ++ [token]) [char] nextInput
+startString acc "" char = genTokenSeq True acc [char]
+startString acc token char = genTokenSeq True (acc ++ [token]) [char]
 
 endString :: [Token] -> Token -> Char -> String -> Either Error [String]
-endString acc token curChar nextInput =
-    genTokenSeq False (acc ++ [token ++ [curChar]]) "" nextInput
+endString acc token curChar =
+    genTokenSeq False (acc ++ [token ++ [curChar]]) ""
 
 -- TODO: Since we are appending to the end, see if there is a more efficient
 -- way to do that.

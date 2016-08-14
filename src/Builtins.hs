@@ -1,4 +1,4 @@
---|Some common functions that are available to all hasp programs by default.
+-- |Some common functions that are available to all hasp programs by default.
 --
 -- Note that this does not include syntactic forms such as if, define, lambda,
 -- and and (since they require behaviour such as short circuiting and mutation
