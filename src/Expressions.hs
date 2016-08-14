@@ -1,4 +1,4 @@
--- Data types representing structured syntactic expressions in hasp, used for
+-- |Data types representing structured syntactic expressions in hasp, used for
 -- defining the abstract syntax tree of a hasp program.
 
 module Expressions
@@ -9,7 +9,7 @@ module Expressions
 
 type VariableName = String
 data Symbol = StringLiteral String
-            | IntLiteral Int
+            | IntLiteral Integer
             | FloatLiteral Float
             | BoolLiteral Bool
             | Var VariableName

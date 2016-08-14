@@ -1,3 +1,5 @@
+-- |Implementations of semantic rules for evaluating expressions in hasp.
+
 module Semantics
 ( evalExpr
 ) where
@@ -20,25 +22,28 @@ evalArgExprs = evalArgExprs_recurse []
 
 evalExpr :: Env -> Expr -> Either Error HData
 
-evalExpr env (Atom (StringLiteral str)) = Right (HString str)
-evalExpr env (Atom (IntLiteral int)) = Right (HInt int)
-evalExpr env (Atom (FloatLiteral float)) = Right (HFloat float)
-evalExpr env (Atom (BoolLiteral bool)) = Right (HBool bool)
+evalExpr env (Atom (StringLiteral str)) = Right $ HString str
+evalExpr env (Atom (IntLiteral int)) = Right . HN $ HInt int
+evalExpr env (Atom (FloatLiteral float)) = Right . HN $ HFloat float
+evalExpr env (Atom (BoolLiteral bool)) = Right $ HBool bool
 
 evalExpr (Env envMap) (Atom (Var varName)) =
     case Map.lookup varName envMap of
         Just value -> Right value
-        Nothing    -> undefined -- Error, undefined symbol
+        Nothing    -> Left . NameError $ "Undefined symbol `" ++ varName ++ "`"
 
--- TODO: See if it's possible to neatly propagate errors without deeply nested case statements.
+-- TODO: See if it's possible to neatly propagate errors without deeply nested
+-- case statements.
 evalExpr env (List []) = Right (HList [])
 evalExpr env (List (functionExpr:argExprs)) =  -- TODO: Actually use closures.
     case evalExpr env functionExpr of
-        Right (HFunc closure nargs f) ->
+        Right (HFunc closure f) ->
             case evalArgExprs env argExprs of
                 Left err   -> Left err
                 Right args ->
                     case f args of
                         Left err     -> Left err
                         Right result -> Right result
-        _ -> undefined -- Error - not a function
+        Left err -> Left err
+        Right result ->
+            Left . Error $ "Cannot evaluate `" ++ (show result) ++ "`"

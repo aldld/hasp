@@ -9,19 +9,11 @@ import Parser
 import Expressions
 import Semantics
 import DataTypes
+import Builtins
 
 import System.IO
 import System.Console.Haskeline
 import Control.Monad
-import qualified Data.Map as Map
-
-globalEnv :: Env
-globalEnv = Env (Map.fromList [
-    -- TODO: This is ugly. Make a nicer way of generating hasp functions.
-    ("+", HFunc (Env Map.empty) 2 $ \args -> case args of
-                       ((HInt x):(HInt y):[]) -> Right (HInt (x + y))
-                       lst -> undefined)
-    ])
 
 printResult :: Either Error HData -> InputT IO ()
 printResult (Left err) = outputStrLn $ show err
