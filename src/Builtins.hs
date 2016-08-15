@@ -43,7 +43,8 @@ globalEnv = Env $ Map.fromList
     , ("list", list)
     , ("cons", cons)
     , ("car", car)
-    , ("cdr", cdr) ]
+    , ("cdr", cdr)
+    , ("empty?", testEmptyList) ]
 
 -- Builtin numeric operations
 
@@ -165,6 +166,15 @@ cdr =
         case args of
             [HList []] -> Left errEmptyList
             [HList (_:xs)] -> Right $ HList xs
+            [_] -> Left errWrongType
+            _ -> Left $ errNumArgs 1 (length args)
+
+testEmptyList :: HData
+testEmptyList =
+    HFunc emptyEnv $ \_ args ->
+        case args of
+            [HList []] -> Right $ HBool True
+            [HList (_:_)] -> Right $ HBool False
             [_] -> Left errWrongType
             _ -> Left $ errNumArgs 1 (length args)
 
