@@ -24,13 +24,13 @@ evalArgExprs :: Env -> [Expr] -> Either Error [HData]
 evalArgExprs = evalArgExprs_recurse []
 
 evalFuncCall :: Env -> Expr -> Either Error (HData, Env)
-evalFuncCall env (List (headExpr:argExprs)) =
+evalFuncCall env (List (headExpr:argExprs)) =  -- TODO: Actually use closures.
     case evalExpr env headExpr of
         Right (HFunc closure f, _) ->
             case evalArgExprs env argExprs of
                 Left err   -> Left err
                 Right args ->
-                    case f args of
+                    case f (Env $ Map.union (toMap env) (toMap closure)) args of
                         Left err     -> Left err
                         Right result -> Right (result, env)
         Left err -> Left err
@@ -83,7 +83,7 @@ defaultSK :: SKMap
 defaultSK = Map.fromList
     [ ("define", SK True define)
     , ("lambda", SK False lambda)
-    , ("if", undefined)
+    , ("if", SK False ifStmt)
     , ("and", undefined)
     , ("or", undefined) ]
 
@@ -104,7 +104,7 @@ define (Env envMap) [Atom (Id name), expr] =
             Right (HList [], Env $ Map.insert name result envMap)
 
 define _ [_, _] = Left errWrongType
-define _ args = Left $ errNumArgs 2 $ length args
+define _ args = Left . errNumArgs 2 $ length args
 
 
 -- |lambda keyword for creating anonymous functions within hasp code. This
@@ -123,7 +123,7 @@ lambda env [(List argExprs), expr] =
         Right argNames -> Right (HFunc env $ makeLambda env argNames expr, env)
 
 lambda _ [_, _] = Left errWrongType
-lambda _ args = Left $ errNumArgs 2 $ length args
+lambda _ args = Left . errNumArgs 2 $ length args
 
 getArgNames :: [Identifier] -> [Expr] -> Either Error [Identifier]
 getArgNames acc [] = Right acc
@@ -132,11 +132,13 @@ getArgNames _ (expr:_) =
     Left . Error $ "Invalid argument identifier `" ++ (show expr) ++
         "` in lambda expression"
 
-makeLambda :: Env -> [Identifier] -> Expr -> ([HData] -> Either Error HData)
-makeLambda (Env envMap) argNames expr args =
+makeLambda :: Env -> [Identifier] -> Expr ->
+    (Env -> [HData] -> Either Error HData)
+makeLambda (Env envMap) argNames expr callerEnv args =
     if expectedNumArgs == actualNumArgs
         then
-            let internEnv = Env $ Map.union envMap $ Map.fromList (zip argNames args)
+            let internEnv = Env $ foldr1 Map.union
+                    [Map.fromList $ zip argNames args, toMap callerEnv, envMap]
             in  case evalExpr internEnv expr of
                 Left err -> Left err
                 Right (result, _) -> Right result
@@ -145,3 +147,26 @@ makeLambda (Env envMap) argNames expr args =
         env = Env envMap
         expectedNumArgs = length argNames
         actualNumArgs = length args
+
+-- |if statement that evaluates the first argument. If the condition evaluates
+-- to true, then the then-expression is evaluated and its result returned,
+-- otherwise the else-expression is evaluated and its result is returned.
+--
+-- Syntax: (if <cond> <then-expr> <else-expr>)
+ifStmt :: Env -> [Expr] -> Either Error (HData, Env)
+ifStmt _ [] = Left $ errNumArgs 3 0
+ifStmt _ (_:[]) = Left $ errNumArgs 3 1
+ifStmt _ (_:_:[]) = Left $ errNumArgs 3 2
+
+ifStmt env [condExpr, thenExpr, elseExpr] =
+    case evalExpr env condExpr of
+        Left err -> Left err
+        Right (HBool cond, _) ->
+            if cond
+            then evalExpr env thenExpr
+            else evalExpr env elseExpr
+        Right (val, _) -> Left . TypeError $
+            "Condition for if statment must be boolean, not `" ++
+                (show val) ++ "`"
+
+ifStmt _ args = Left . errNumArgs 3 $ length args

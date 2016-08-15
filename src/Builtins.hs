@@ -58,13 +58,13 @@ foldlHNum1 f ((HN x):xs) = foldlHNum f x xs
 foldlHNum1 f (x:xs) = Left . errNotNum $ show x
 
 numericFold :: (HNum -> HNum -> HNum) -> HNum -> HData
-numericFold op x0 = HFunc emptyEnv $ \args ->
+numericFold op x0 = HFunc emptyEnv $ \_ args ->
     case foldlHNum op x0 args of
         Left err -> Left err
         Right result -> Right $ HN result
 
 minusHNum :: HData
-minusHNum = HFunc emptyEnv $ \args ->
+minusHNum = HFunc emptyEnv $ \_ args ->
     case args of
         [HN x] -> Right . HN $ negate x
         _ -> case foldlHNum1 (-) args of
@@ -86,7 +86,7 @@ _ `divideHNum` (HFloat 0) = Left divideByZeroError
 
 numericBinOp :: (HNum -> HNum -> Either Error HNum) -> HData
 numericBinOp op =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [HN x, HN y] ->
                 case x `op` y of
@@ -99,7 +99,7 @@ numericBinOp op =
 
 numericBinPred :: (HNum -> HNum -> Bool) -> HData
 numericBinPred op =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [HN x, HN y] -> Right . HBool $ x `op` y
             [x, HN _] -> Left . errNotNum $ show x
@@ -130,7 +130,7 @@ x@(HFloat _) `modHNum` _ = Left $ notIntegerError (HN x)
 
 numericUnaryOp :: (HNum -> HNum) -> HData
 numericUnaryOp f =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [HN x] -> Right . HN $ f x
             [_]    -> Left errWrongType
@@ -139,12 +139,12 @@ numericUnaryOp f =
 -- Builtin list operations
 
 list :: HData
-list = HFunc emptyEnv $ \args -> Right $ HList args
+list = HFunc emptyEnv $ \_ args -> Right $ HList args
 
 -- TODO: Properly support dotted lists.
 cons :: HData
 cons =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [x, HList xs] -> Right $ HList (x:xs)
             [_, _] -> Left errWrongType
@@ -152,7 +152,7 @@ cons =
 
 car :: HData
 car =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [HList []] -> Left errEmptyList
             [HList (x:_)] -> Right x
@@ -161,7 +161,7 @@ car =
 
 cdr :: HData
 cdr =
-    HFunc emptyEnv $ \args ->
+    HFunc emptyEnv $ \_ args ->
         case args of
             [HList []] -> Left errEmptyList
             [HList (_:xs)] -> Right $ HList xs

@@ -8,6 +8,7 @@ module DataTypes
 , HNum(..)
 , Env(..)
 , emptyEnv
+, toMap
 ) where
 
 import qualified Data.Map as Map
@@ -62,8 +63,7 @@ data HData = HN HNum
            | HString String
            | HList [HData]
            | HQuote Expr
-           | HFunc Env ([HData] -> Either Error HData)
-           -- TODO: Storing Env with HFunc may not be necessary after all.
+           | HFunc Env (Env -> [HData] -> Either Error HData)
 
 instance Eq HData where
     (HFunc _ _) == _ = False
@@ -86,3 +86,6 @@ data Env = Env (Map.Map Identifier HData)
 
 emptyEnv :: Env
 emptyEnv = Env (Map.empty)
+
+toMap :: Env -> Map.Map Identifier HData
+toMap (Env m) = m
