@@ -149,7 +149,7 @@ cons =
         case args of
             [x, HList xs] -> Right $ HList (x:xs)
             [_, _] -> Left errWrongType
-            _ -> Left $ errNumArgs 1 (length args)
+            _ -> Left $ errNumArgs 2 (length args)
 
 car :: HData
 car =
