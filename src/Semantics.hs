@@ -24,7 +24,7 @@ evalArgExprs :: Env -> [Expr] -> Either Error [HData]
 evalArgExprs = evalArgExprs_recurse []
 
 evalFuncCall :: Env -> Expr -> Either Error (HData, Env)
-evalFuncCall env (List (headExpr:argExprs)) =  -- TODO: Actually use closures.
+evalFuncCall env (List (headExpr:argExprs)) =
     case evalExpr env headExpr of
         Right (HFunc closure f, _) ->
             case evalArgExprs env argExprs of
@@ -82,12 +82,16 @@ type SKMap = Map.Map Identifier SyntacticKeyword
 defaultSK :: SKMap
 defaultSK = Map.fromList
     [ ("define", SK True define)
-    , ("lambda", undefined)
+    , ("lambda", SK False lambda)
     , ("if", undefined)
     , ("and", undefined)
     , ("or", undefined) ]
 
--- |(define <name> <expr>)
+
+-- |define keyword used for creating global variable name bindings. This
+-- operation may overwrite existing bindings, if present.
+--
+-- Syntax: (define <name> <expr>)
 define :: Env -> [Expr] -> Either Error (HData, Env)
 define _ [] = Left $ errNumArgs 2 0
 define _ (_:[]) = Left $ errNumArgs 2 1
@@ -101,3 +105,43 @@ define (Env envMap) [Atom (Id name), expr] =
 
 define _ [_, _] = Left errWrongType
 define _ args = Left $ errNumArgs 2 $ length args
+
+
+-- |lambda keyword for creating anonymous functions within hasp code. This
+-- includes an (admittedly rudimentary) implementation of closures, in the sense
+-- that the environment in which an anonymous function is created is stored
+-- in the function returned by lambda.
+--
+-- Syntax: (lambda (<arg-ids> ...) <expr>)
+lambda :: Env -> [Expr] -> Either Error (HData, Env)
+lambda _ [] = Left $ errNumArgs 2 0
+lambda _ (_:[]) = Left $ errNumArgs 2 1
+
+lambda env [(List argExprs), expr] =
+    case getArgNames [] argExprs of
+        Left err -> Left err
+        Right argNames -> Right (HFunc env $ makeLambda env argNames expr, env)
+
+lambda _ [_, _] = Left errWrongType
+lambda _ args = Left $ errNumArgs 2 $ length args
+
+getArgNames :: [Identifier] -> [Expr] -> Either Error [Identifier]
+getArgNames acc [] = Right acc
+getArgNames acc ((Atom (Id ident)):exprs) = getArgNames (acc ++ [ident]) exprs
+getArgNames _ (expr:_) =
+    Left . Error $ "Invalid argument identifier `" ++ (show expr) ++
+        "` in lambda expression"
+
+makeLambda :: Env -> [Identifier] -> Expr -> ([HData] -> Either Error HData)
+makeLambda (Env envMap) argNames expr args =
+    if expectedNumArgs == actualNumArgs
+        then
+            let internEnv = Env $ Map.union envMap $ Map.fromList (zip argNames args)
+            in  case evalExpr internEnv expr of
+                Left err -> Left err
+                Right (result, _) -> Right result
+    else Left $ errNumArgs expectedNumArgs actualNumArgs
+    where
+        env = Env envMap
+        expectedNumArgs = length argNames
+        actualNumArgs = length args

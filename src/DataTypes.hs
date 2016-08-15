@@ -63,6 +63,7 @@ data HData = HN HNum
            | HList [HData]
            | HQuote Expr
            | HFunc Env ([HData] -> Either Error HData)
+           -- TODO: Storing Env with HFunc may not be necessary after all.
 
 instance Eq HData where
     (HFunc _ _) == _ = False
