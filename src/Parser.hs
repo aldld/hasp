@@ -46,29 +46,28 @@ varNamePat = "^([a-zA-Z]|-|[!@$%&*_=+|<>/?])([a-zA-Z0-9]|-|[!@$%&*_=+|<>/?])*$"
 -- |Parses a (supposedly) atomic expression to determine its type, and checks
 -- that it is indeed a legal atom.
 -- TODO: Make this more robust.
-parseAtom :: Token -> Either Error Expr
+parseAtom :: Token -> ThrowsError Expr
 parseAtom token
     | (token =~ integerPat :: Bool) =
         let maybeVal = readMaybe token :: Maybe Integer
         in  case maybeVal of
-                Nothing    -> parseFailure
-                Just value -> Right . Atom $ IntLiteral value
+                Nothing    -> throw parseFailure
+                Just value -> return . Atom $ IntLiteral value
     | (token =~ floatPat :: Bool)   =
         let maybeVal = readMaybe token :: Maybe Float
         in  case maybeVal of
-            Nothing    -> parseFailure
-            Just value -> Right . Atom $ FloatLiteral value
+            Nothing    -> throw parseFailure
+            Just value -> return . Atom $ FloatLiteral value
     | (token =~ boolPat :: Bool)    =
         case token of
-            "#t" -> Right . Atom $ BoolLiteral True
-            "#f" -> Right . Atom $ BoolLiteral False
-            _    -> parseFailure
-    | (token =~ stringPat :: Bool)  = Right . Atom $ StringLiteral token
-    | (token =~ varNamePat :: Bool) = Right . Atom $ Id token
-    | otherwise                     = parseFailure
+            "#t" -> return . Atom $ BoolLiteral True
+            "#f" -> return . Atom $ BoolLiteral False
+            _    -> throw parseFailure
+    | (token =~ stringPat :: Bool)  = return . Atom $ StringLiteral token
+    | (token =~ varNamePat :: Bool) = return . Atom $ Id token
+    | otherwise                     = throw parseFailure
     where
-        parseFailure = Left . SyntaxError $ "Invalid atomic symbol `" ++
-            token ++ "`"
+        parseFailure = SyntaxError $ "Invalid atomic symbol `" ++ token ++ "`"
 
 -- |Parses hasp source code, represented as a string, producing a list of hasp
 -- expressions, in order from left to right, represnted by their abstract
@@ -87,31 +86,26 @@ parseAtom token
 --
 --     other: An atomic value - append it to the list on top of the stack. If
 --            the stack is empty then we have a loose atom, so just return it.
-traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> Either Error [Expr]
-traverseExprTokens [] acc [] = Right acc
-traverseExprTokens (top:rest) _ [] = Left (SyntaxError "Missing )")
+traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> ThrowsError [Expr]
+traverseExprTokens [] acc [] = return acc
+traverseExprTokens (top:rest) _ [] = throw (SyntaxError "Missing )")
 
 traverseExprTokens stack acc ("(":tokens) = 
     traverseExprTokens (push [] stack) acc tokens
 
-traverseExprTokens [] acc ( ")":tokens) = Left (SyntaxError "Extra )")
+traverseExprTokens [] acc ( ")":tokens) = throw (SyntaxError "Extra )")
 traverseExprTokens (top:[]) acc ( ")":tokens) =
     traverseExprTokens [] (acc ++ [List top]) tokens
 traverseExprTokens (top:rest) acc ( ")":tokens) =
     traverseExprTokens (squashTwo appendTo (top:rest)) acc tokens
 
-traverseExprTokens [] acc (atom:tokens) =
-    let maybeVal = parseAtom atom
-    in  case maybeVal of
-            Left err  -> Left err
-            Right val -> traverseExprTokens [] (acc ++ [val]) tokens
-traverseExprTokens (top:rest) acc (atom:tokens) =
-    let maybeVal = parseAtom atom
-    in  case maybeVal of
-            Left err  -> Left err
-            Right val ->
-                traverseExprTokens (push (top ++ [val]) rest) acc tokens
+traverseExprTokens [] acc (atom:tokens) = do
+    val <- parseAtom atom
+    traverseExprTokens [] (acc ++ [val]) tokens
+traverseExprTokens (top:rest) acc (atom:tokens) = do
+    val <- parseAtom atom
+    traverseExprTokens (push (top ++ [val]) rest) acc tokens
 
-parseExprs :: [Token] -> Either Error [Expr]
+parseExprs :: [Token] -> ThrowsError [Expr]
 parseExprs = traverseExprTokens [] []
 

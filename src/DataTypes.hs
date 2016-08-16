@@ -63,7 +63,7 @@ data HData = HN HNum
            | HString String
            | HList [HData]
            | HQuote Expr
-           | HFunc Env (Env -> [HData] -> Either Error HData)
+           | HFunc Env (Env -> [HData] -> ThrowsError HData)
 
 instance Eq HData where
     (HFunc _ _) == _ = False
