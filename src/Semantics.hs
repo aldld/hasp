@@ -30,7 +30,8 @@ evalFuncCall env (List (headExpr:argExprs)) = do
             args <- evalArgExprs env argExprs
             result <- f (Env $ Map.union (toMap env) (toMap closure)) args
             return (result, env)
-        result -> throw . Error $ "Cannot evaluate `" ++ (show result) ++ "`"
+        result -> throw . TypeError $ "Cannot evaluate `" ++
+            (show result) ++ "`"
 
 evalExpr :: Env -> Expr -> ThrowsError (HData, Env)
 
@@ -86,16 +87,16 @@ defaultSK = Map.fromList
 --
 -- Syntax: (define <name> <expr>)
 define :: Env -> [Expr] -> ThrowsError (HData, Env)
-define _ [] = throw $ errNumArgs 2 0
-define _ (_:[]) = throw $ errNumArgs 2 1
+define _ [] = throw $ errNumArgs "define" 2 0
+define _ (_:[]) = throw $ errNumArgs "define" 2 1
 
 -- TODO: define shouldn't really return anything.
 define (Env envMap) [Atom (Id name), expr] = do
     (result, _) <- evalExpr (Env envMap) expr
     return (HList [], Env $ Map.insert name result envMap)
 
-define _ [_, _] = throw errWrongType
-define _ args = throw . errNumArgs 2 $ length args
+define _ [_, _] = throw $ errFormSyntax "define" "(define <name> <expr>)"
+define _ args = throw . errNumArgs "define" 2 $ length args
 
 
 -- |lambda keyword for creating anonymous functions within hasp code. This
@@ -105,16 +106,17 @@ define _ args = throw . errNumArgs 2 $ length args
 --
 -- Syntax: (lambda (<arg-ids> ...) <expr>)
 lambda :: Env -> [Expr] -> ThrowsError (HData, Env)
-lambda _ [] = throw $ errNumArgs 2 0
-lambda _ (_:[]) = throw $ errNumArgs 2 1
+lambda _ [] = throw $ errNumArgs "lambda" 2 0
+lambda _ (_:[]) = throw $ errNumArgs "lambda" 2 1
 
 lambda env [(List argExprs), expr] = do
     argNames <- getArgNames [] argExprs
     return (HFunc env $ makeLambda env argNames expr, env)
 
 
-lambda _ [_, _] = throw errWrongType
-lambda _ args = throw . errNumArgs 2 $ length args
+lambda _ [_, _] = throw $ errFormSyntax
+    "lambda" "(lambda (<arg-ids> ...) <expr>"
+lambda _ args = throw . errNumArgs "lambda" 2 $ length args
 
 getArgNames :: [Identifier] -> [Expr] -> ThrowsError [Identifier]
 getArgNames acc [] = return acc
@@ -132,7 +134,7 @@ makeLambda (Env envMap) argNames expr callerEnv args =
                     [Map.fromList $ zip argNames args, toMap callerEnv, envMap]
             (result, _) <- evalExpr internEnv expr
             return result
-    else throw $ errNumArgs expectedNumArgs actualNumArgs
+    else throw $ errNumArgs "procedure" expectedNumArgs actualNumArgs
     where
         env = Env envMap
         expectedNumArgs = length argNames
@@ -144,9 +146,9 @@ makeLambda (Env envMap) argNames expr callerEnv args =
 --
 -- Syntax: (if <cond> <then-expr> <else-expr>)
 ifStmt :: Env -> [Expr] -> ThrowsError (HData, Env)
-ifStmt _ [] = throw $ errNumArgs 3 0
-ifStmt _ (_:[]) = throw $ errNumArgs 3 1
-ifStmt _ (_:_:[]) = throw $ errNumArgs 3 2
+ifStmt _ [] = throw $ errNumArgs "if" 3 0
+ifStmt _ (_:[]) = throw $ errNumArgs "if" 3 1
+ifStmt _ (_:_:[]) = throw $ errNumArgs "if" 3 2
 
 ifStmt env [condExpr, thenExpr, elseExpr] = do
     (condResult, _) <- evalExpr env condExpr
@@ -159,4 +161,4 @@ ifStmt env [condExpr, thenExpr, elseExpr] = do
             "Condition for if statment must be boolean, not `" ++
                 (show val) ++ "`"
 
-ifStmt _ args = throw . errNumArgs 3 $ length args
+ifStmt _ args = throw . errNumArgs "if" 3 $ length args

@@ -11,17 +11,14 @@ module Error
 , errNumArgs
 , errEmptyList
 , errWrongType
+, errFormSyntax
 ) where
-
-import System.Console.Haskeline
-import Control.Monad
 
 data HaspError = Error String
                | SyntaxError String
                | NameError String
                | TypeError String
                | BadFormError String
-               | NotFunctionError String
 
 instance Show HaspError where
     show (Error msg) = "Error: " ++ msg
@@ -29,7 +26,6 @@ instance Show HaspError where
     show (NameError msg) = "NameError: " ++ msg
     show (TypeError msg) = "TypeError: " ++ msg
     show (BadFormError msg) = "BadFormError: " ++ msg
-    show (NotFunctionError msg) = "NotFunctionError: " ++ msg
 
 newtype ThrowsError a = TE (Either HaspError a)
 
@@ -62,16 +58,22 @@ unpackVal (TE val) = val
 errNotNum :: String -> HaspError
 errNotNum x = TypeError $ "Value of `" ++ x ++ "` is not numeric"
 
-errTooFewArgs :: HaspError
-errTooFewArgs = TypeError "Too few arguments"
+errWrongType :: String -> String -> HaspError
+errWrongType fname expected = TypeError $ "Wrong type in call to `" ++ fname ++
+    "`.\n\tExpected argument of type" ++ expected
 
-errNumArgs :: Int -> Int -> HaspError
-errNumArgs expected actual =
-    TypeError $ "Invalid number of arguments.\n\tExpected " ++
-        show expected ++ " arguments, got " ++ show actual
+errTooFewArgs :: String -> HaspError
+errTooFewArgs fname = TypeError $ "Too few arguments to `" ++ fname ++ "`"
 
-errEmptyList :: HaspError
-errEmptyList = Error "Empty list"
+errNumArgs :: String -> Int -> Int -> HaspError
+errNumArgs fname expected actual =
+    TypeError $ "Invalid number of arguments to `" ++ fname ++
+        "`.\n\tExpected " ++ show expected ++ " arguments, got " ++ show actual
 
-errWrongType :: HaspError
-errWrongType = Error "Wrong type"
+errEmptyList :: String -> HaspError
+errEmptyList fname = Error $ "Attempted to call `" ++ fname ++ "` on Empty list"
+
+errFormSyntax :: String -> String -> HaspError
+errFormSyntax fname syntax =
+    BadFormError $ "Syntax of `" ++ fname ++ "` expression must be of form " ++
+        syntax

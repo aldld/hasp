@@ -28,18 +28,18 @@ globalEnv = Env $ Map.fromList
     [ ("+", numericFold (+) 0)
     , ("*", numericFold (*) 1)
     , ("-", minusHNum)
-    , ("/", numericBinOp divideHNum)
-    , ("quotient", numericBinOp divHNum)
-    , ("modulo", numericBinOp modHNum)
-    , ("abs", numericUnaryOp abs)
-    , ("sgn", numericUnaryOp signum)
-    , ("eq?", numericBinPred (==))
-    , ("=", numericBinPred (==))
-    , ("<", numericBinPred (<))
-    , ("<=", numericBinPred (<=))
-    , (">", numericBinPred (>))
-    , (">=", numericBinPred (>=))
-    , ("!=", numericBinPred (/=))
+    , ("/", numericBinOp "/" divideHNum)
+    , ("quotient", numericBinOp "quotient" divHNum)
+    , ("modulo", numericBinOp "modulo" modHNum)
+    , ("abs", numericUnaryOp "abs" abs)
+    , ("sgn", numericUnaryOp "sgn" signum)
+    , ("eq?", numericBinPred "eq?" (==))
+    , ("=", numericBinPred "=" (==))
+    , ("<", numericBinPred "<" (<))
+    , ("<=", numericBinPred "<=" (<=))
+    , (">", numericBinPred ">" (>))
+    , (">=", numericBinPred ">=" (>=))
+    , ("!=", numericBinPred "!=" (/=))
     , ("list", list)
     , ("cons", cons)
     , ("car", car)
@@ -53,10 +53,10 @@ foldlHNum _ x0 [] = return x0
 foldlHNum f x0 ((HN x):xs) = foldlHNum f (x0 `f` x) xs 
 foldlHNum f x0 (x:xs) = throw . errNotNum $ show x
 
-foldlHNum1 :: (HNum -> HNum -> HNum) -> [HData] -> ThrowsError HNum
-foldlHNum1 _ [] = throw errTooFewArgs
-foldlHNum1 f ((HN x):xs) = foldlHNum f x xs
-foldlHNum1 f (x:xs) = throw . errNotNum $ show x
+foldlHNum1 :: String -> (HNum -> HNum -> HNum) -> [HData] -> ThrowsError HNum
+foldlHNum1 fname _ [] = throw $ errTooFewArgs fname
+foldlHNum1 _ f ((HN x):xs) = foldlHNum f x xs
+foldlHNum1 _ f (x:xs) = throw . errNotNum $ show x
 
 numericFold :: (HNum -> HNum -> HNum) -> HNum -> HData
 numericFold op x0 = HFunc emptyEnv $ \_ args -> do
@@ -68,7 +68,7 @@ minusHNum = HFunc emptyEnv $ \_ args ->
     case args of
         [HN x] -> return . HN $ negate x
         _ -> do
-            result <- foldlHNum1 (-) args
+            result <- foldlHNum1 "-" (-) args
             return $ HN result
 
 divideByZeroError :: HaspError
@@ -84,8 +84,8 @@ _ `divideHNum` (HFloat 0) = throw divideByZeroError
 (HFloat x) `divideHNum` (HInt y) = return $ HFloat (x / (fromIntegral y))
 (HFloat x) `divideHNum` (HFloat y) = return $ HFloat (x / y)
 
-numericBinOp :: (HNum -> HNum -> ThrowsError HNum) -> HData
-numericBinOp op =
+numericBinOp :: String -> (HNum -> HNum -> ThrowsError HNum) -> HData
+numericBinOp opName op =
     HFunc emptyEnv $ \_ args ->
         case args of
             [HN x, HN y] -> do
@@ -94,17 +94,17 @@ numericBinOp op =
             [x, HN _] -> throw . errNotNum $ show x
             [HN _, y] -> throw . errNotNum $ show y
             [x, _] -> throw . errNotNum $ show x
-            _ -> throw $ errNumArgs 2 (length args)
+            _ -> throw $ errNumArgs opName 2 (length args)
 
-numericBinPred :: (HNum -> HNum -> Bool) -> HData
-numericBinPred op =
+numericBinPred :: String -> (HNum -> HNum -> Bool) -> HData
+numericBinPred predName op =
     HFunc emptyEnv $ \_ args ->
         case args of
             [HN x, HN y] -> return . HBool $ x `op` y
             [x, HN _] -> throw . errNotNum $ show x
             [HN _, y] -> throw . errNotNum $ show y
             [x, _] -> throw . errNotNum $ show x
-            _ -> throw $ errNumArgs 2 (length args)
+            _ -> throw $ errNumArgs predName 2 (length args)
 
 notIntegerError :: HData -> HaspError
 notIntegerError x =
@@ -126,45 +126,44 @@ x@(HFloat _) `modHNum` _ = throw $ notIntegerError (HN x)
 
 (HInt x) `modHNum` (HInt y) = return $ HInt (x `mod` y)
 
-numericUnaryOp :: (HNum -> HNum) -> HData
-numericUnaryOp f =
+numericUnaryOp :: String -> (HNum -> HNum) -> HData
+numericUnaryOp fname f =
     HFunc emptyEnv $ \_ args ->
         case args of
             [HN x] -> return . HN $ f x
-            [_]    -> throw errWrongType
-            _      -> throw $ errNumArgs 1 (length args)
+            [x]    -> throw . errNotNum $ show x
+            _      -> throw $ errNumArgs fname 1 (length args)
 
 -- Builtin list operations
 
 list :: HData
 list = HFunc emptyEnv $ \_ args -> return $ HList args
 
--- TODO: Properly support dotted lists.
 cons :: HData
 cons =
     HFunc emptyEnv $ \_ args ->
         case args of
             [x, HList xs] -> return $ HList (x:xs)
-            [_, _] -> throw errWrongType
-            _ -> throw $ errNumArgs 2 (length args)
+            [_, _] -> throw $ errWrongType "cons" "list"
+            _ -> throw $ errNumArgs "cons" 2 (length args)
 
 car :: HData
 car =
     HFunc emptyEnv $ \_ args ->
         case args of
-            [HList []] -> throw errEmptyList
+            [HList []] -> throw $ errEmptyList "car"
             [HList (x:_)] -> return x
-            [_] -> throw errWrongType
-            _ -> throw $ errNumArgs 1 (length args)
+            [_] -> throw $ errWrongType "car" "list"
+            _ -> throw $ errNumArgs "car" 1 (length args)
 
 cdr :: HData
 cdr =
     HFunc emptyEnv $ \_ args ->
         case args of
-            [HList []] -> throw errEmptyList
+            [HList []] -> throw $ errEmptyList "cdr"
             [HList (_:xs)] -> return $ HList xs
-            [_] -> throw errWrongType
-            _ -> throw $ errNumArgs 1 (length args)
+            [_] -> throw $ errWrongType "cdr" "list"
+            _ -> throw $ errNumArgs "cdr" 1 (length args)
 
 testEmptyList :: HData
 testEmptyList =
@@ -172,6 +171,6 @@ testEmptyList =
         case args of
             [HList []] -> return $ HBool True
             [HList (_:_)] -> return $ HBool False
-            [_] -> throw errWrongType
-            _ -> throw $ errNumArgs 1 (length args)
+            [_] -> throw $ errWrongType "empty?" "list"
+            _ -> throw $ errNumArgs "empty?" 1 (length args)
 

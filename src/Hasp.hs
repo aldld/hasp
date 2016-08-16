@@ -13,7 +13,6 @@ import Builtins
 
 import System.IO
 import System.Console.Haskeline
-import Control.Monad
 
 printErrorAndContinue :: Env -> HaspError -> InputT IO ()
 printErrorAndContinue env err = do
