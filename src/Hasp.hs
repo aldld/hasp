@@ -13,6 +13,7 @@ import Builtins
 
 import System.IO
 import System.Console.Haskeline
+import Control.Monad
 
 printErrorAndContinue :: Env -> HaspError -> InputT IO ()
 printErrorAndContinue env err = do
@@ -28,7 +29,7 @@ printExprResults env (expr:exprs) = do
             outputStrLn $ show err
             return env
         Right (result, newEnv) -> do
-            outputStrLn $ show result
+            when (result /= HNothing) $ outputStrLn $ show result
             printExprResults newEnv exprs
 
 handleError :: (ThrowsError a) -> (HaspError -> InputT IO ()) -> (a -> InputT IO ()) -> InputT IO ()

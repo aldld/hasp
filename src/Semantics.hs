@@ -34,15 +34,6 @@ evalFuncCall env (List (headExpr:argExprs)) = do
     (result, _) <- evalExpr env headExpr
     args <- evalArgExprs env argExprs
     evalFunc env result args
-    {-
-    case result of
-        HFunc closure f -> do
-            args <- evalArgExprs env argExprs
-            result <- f (Env $ Map.union (toMap env) (toMap closure)) args
-            return (result, env)
-        result -> throw . TypeError $ "Cannot evaluate `" ++
-            (show result) ++ "`"
-    -}
 
 evalExpr :: Env -> Expr -> ThrowsError (HData, Env)
 
@@ -105,7 +96,7 @@ define _ (_:[]) = throw $ errNumArgs "define" 2 1
 -- TODO: define shouldn't really return anything.
 define (Env envMap) [Atom (Id name), expr] = do
     (result, _) <- evalExpr (Env envMap) expr
-    return (HList [], Env $ Map.insert name result envMap)
+    return (HNothing, Env $ Map.insert name result envMap)
 
 define _ [_, _] = throw $ errFormSyntax "define" "(define <name> <expr>)"
 define _ args = throw . errNumArgs "define" 2 $ length args

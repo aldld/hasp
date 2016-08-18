@@ -64,6 +64,7 @@ data HData = HN HNum
            | HList [HData]
            | HQuote Expr
            | HFunc Env (Env -> [HData] -> ThrowsError HData)
+           | HNothing -- For use in hasp interpreter (i.e. Haskell code) ONLY!!!
 
 instance Eq HData where
     (HFunc _ _) == _ = False
@@ -81,6 +82,7 @@ instance Show HData where
     show (HList list) = "(" ++ unwords (map show list) ++ ")"
     show (HQuote expr) = "'" ++ (show expr)
     show (HFunc _ _) = "procedure"
+    show HNothing = ""
 
 data Env = Env (Map.Map Identifier HData)
 
