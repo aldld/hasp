@@ -22,9 +22,19 @@ evalArgExprs_recurse acc env (expr:exprs) = do
 evalArgExprs :: Env -> [Expr] -> ThrowsError [HData]
 evalArgExprs = evalArgExprs_recurse []
 
+evalFunc :: Env -> HData -> [HData] -> ThrowsError (HData, Env)
+evalFunc env (HFunc closure f) args = do
+    result <- f (Env $ Map.union (toMap env) (toMap closure)) args
+    return (result, env)
+evalFunc _ notFunc _ = throw . TypeError $ "Cannot evaluate `" ++
+            (show notFunc) ++ "`"
+
 evalFuncCall :: Env -> Expr -> ThrowsError (HData, Env)
 evalFuncCall env (List (headExpr:argExprs)) = do
     (result, _) <- evalExpr env headExpr
+    args <- evalArgExprs env argExprs
+    evalFunc env result args
+    {-
     case result of
         HFunc closure f -> do
             args <- evalArgExprs env argExprs
@@ -32,6 +42,7 @@ evalFuncCall env (List (headExpr:argExprs)) = do
             return (result, env)
         result -> throw . TypeError $ "Cannot evaluate `" ++
             (show result) ++ "`"
+    -}
 
 evalExpr :: Env -> Expr -> ThrowsError (HData, Env)
 
@@ -78,6 +89,7 @@ defaultSK = Map.fromList
     [ ("define", SK True define)
     , ("lambda", SK False lambda)
     , ("if", SK False ifStmt)
+    , ("apply", SK False applyHFunc)
     , ("and", undefined)
     , ("or", undefined) ]
 
@@ -162,3 +174,23 @@ ifStmt env [condExpr, thenExpr, elseExpr] = do
                 (show val) ++ "`"
 
 ifStmt _ args = throw . errNumArgs "if" 3 $ length args
+
+-- |apply statement. Applies the function specified by the first argument to the
+-- values provided as a list in the second argument.
+applyHFunc :: Env -> [Expr] -> ThrowsError (HData, Env)
+applyHFunc env args =
+    case args of
+        []  -> throw $ errNumArgs "apply" 2 0
+        [_] -> throw $ errNumArgs "apply" 2 1
+        [funcExpr, argsExpr] -> do
+            (func, _) <- evalExpr env funcExpr
+            (resultArgs, _) <- evalExpr env argsExpr
+
+            case resultArgs of
+                HList args -> evalFunc env func args
+                _ -> throw $ errWrongType "apply" "list"
+            {-
+            case evalExpr env argsExpr of
+                HList inputArgs -> evalExpr env $ List (func:inputArgs)
+            -}
+        args -> throw $ errNumArgs "apply" 2 $ length args

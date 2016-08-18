@@ -60,7 +60,7 @@ errNotNum x = TypeError $ "Value of `" ++ x ++ "` is not numeric"
 
 errWrongType :: String -> String -> HaspError
 errWrongType fname expected = TypeError $ "Wrong type in call to `" ++ fname ++
-    "`.\n\tExpected argument of type" ++ expected
+    "`.\n\tExpected argument of type " ++ expected
 
 errTooFewArgs :: String -> HaspError
 errTooFewArgs fname = TypeError $ "Too few arguments to `" ++ fname ++ "`"
