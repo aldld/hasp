@@ -6,8 +6,12 @@ module Parser
 , Token
 ) where
 
+import Data.Sequence
+import Data.Foldable (toList)
+import Control.Monad (liftM)
 import Text.Read
-import Text.Regex.Posix
+import Text.Regex.Posix hiding (empty)
+
 import Expressions
 import Error
 import Tokenizer
@@ -29,8 +33,8 @@ squashTwo f (first:rest) =
         Nothing -> first:rest
         Just second -> push (first `f` second) remain
 
-appendTo :: [Expr] -> [Expr] -> [Expr]
-x `appendTo` lst = lst ++ [List x]
+appendTo :: Seq Expr -> Seq Expr -> Seq Expr
+x `appendTo` lst = lst |> (List $ toList x)
 
 integerPat = "^-?[0-9]+$"
 floatPat = "^-?[0-9]+\\.[0-9]+$" -- TODO: Parse scientific notation.
@@ -86,26 +90,27 @@ parseAtom token
 --
 --     other: An atomic value - append it to the list on top of the stack. If
 --            the stack is empty then we have a loose atom, so just return it.
-traverseExprTokens :: Stack [Expr] -> [Expr] -> [Token] -> ThrowsError [Expr]
+traverseExprTokens :: Stack (Seq Expr) -> Seq Expr -> [Token] ->
+    ThrowsError (Seq Expr)
 traverseExprTokens [] acc [] = return acc
 traverseExprTokens (top:rest) _ [] = throw (SyntaxError "Missing )")
 
 traverseExprTokens stack acc ("(":tokens) = 
-    traverseExprTokens (push [] stack) acc tokens
+    traverseExprTokens (push empty stack) acc tokens
 
 traverseExprTokens [] acc ( ")":tokens) = throw (SyntaxError "Extra )")
 traverseExprTokens (top:[]) acc ( ")":tokens) =
-    traverseExprTokens [] (acc ++ [List top]) tokens
+    traverseExprTokens [] (acc |> (List $ toList top)) tokens
 traverseExprTokens (top:rest) acc ( ")":tokens) =
     traverseExprTokens (squashTwo appendTo (top:rest)) acc tokens
 
 traverseExprTokens [] acc (atom:tokens) = do
     val <- parseAtom atom
-    traverseExprTokens [] (acc ++ [val]) tokens
+    traverseExprTokens [] (acc |> val) tokens
 traverseExprTokens (top:rest) acc (atom:tokens) = do
     val <- parseAtom atom
-    traverseExprTokens (push (top ++ [val]) rest) acc tokens
+    traverseExprTokens (push (top |> val) rest) acc tokens
 
 parseExprs :: [Token] -> ThrowsError [Expr]
-parseExprs = traverseExprTokens [] []
+parseExprs tokens = liftM toList $ traverseExprTokens [] empty tokens
 

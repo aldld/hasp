@@ -6,38 +6,40 @@ module Tokenizer
 , Token
 ) where
 
+import Data.Sequence
+import Data.Foldable (toList)
+import Control.Monad (liftM)
+
 import Error
 
 type Token = String
 
 tokenize :: String -> ThrowsError [Token]
-tokenize = genTokenSeq False [] ""
+tokenize source = liftM toList $ genTokenSeq False empty "" source
 
-keepDelim :: [Token] -> Token -> Char -> String -> ThrowsError [String]
-keepDelim acc "" char = genTokenSeq False (acc ++ [[char]]) ""
-keepDelim acc token char = genTokenSeq False (acc ++ [token, [char]]) ""
+keepDelim :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
+keepDelim acc "" char = genTokenSeq False (acc |> [char]) ""
+keepDelim acc token char = genTokenSeq False (acc |> token |> [char]) ""
 
-dropDelim :: [Token] -> Token -> Char -> String -> ThrowsError [String]
+dropDelim :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
 dropDelim acc "" char = genTokenSeq False acc "" 
-dropDelim acc token char = genTokenSeq False (acc ++ [token]) ""
+dropDelim acc token char = genTokenSeq False (acc |> token) ""
 
-appendChar :: Bool -> [Token] -> Token -> Char -> String ->
-    ThrowsError [String]
+appendChar :: Bool -> Seq Token -> Token -> Char -> String ->
+    ThrowsError (Seq Token)
 appendChar isString acc token char = genTokenSeq isString acc (token ++ [char])
 
-startString :: [Token] -> Token -> Char -> String -> ThrowsError [String]
+startString :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
 startString acc "" char = genTokenSeq True acc [char]
-startString acc token char = genTokenSeq True (acc ++ [token]) [char]
+startString acc token char = genTokenSeq True (acc |> token) [char]
 
-endString :: [Token] -> Token -> Char -> String -> ThrowsError [String]
+endString :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
 endString acc token curChar =
-    genTokenSeq False (acc ++ [token ++ [curChar]]) ""
+    genTokenSeq False (acc |> (token ++ [curChar])) ""
 
--- TODO: Since we are appending to the end, see if there is a more efficient
--- way to do that.
-genTokenSeq :: Bool -> [Token] -> Token -> String -> ThrowsError [String]
+genTokenSeq :: Bool -> Seq Token -> Token -> String -> ThrowsError (Seq Token)
 genTokenSeq False acc "" "" = return acc
-genTokenSeq False acc token "" = return (acc ++ [token])
+genTokenSeq False acc token "" = return (acc |> token)
 
 genTokenSeq True acc token "" = throw $ SyntaxError "Unclosed string literal"
 
