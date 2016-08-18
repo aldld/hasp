@@ -81,8 +81,8 @@ defaultSK = Map.fromList
     , ("lambda", SK False lambda)
     , ("if", SK False ifStmt)
     , ("apply", SK False applyHFunc)
-    , ("and", undefined)
-    , ("or", undefined) ]
+    , ("and", SK False boolAnd)
+    , ("or", SK False boolOr) ]
 
 
 -- |define keyword used for creating global variable name bindings. This
@@ -180,8 +180,24 @@ applyHFunc env args =
             case resultArgs of
                 HList args -> evalFunc env func args
                 _ -> throw $ errWrongType "apply" "list"
-            {-
-            case evalExpr env argsExpr of
-                HList inputArgs -> evalExpr env $ List (func:inputArgs)
-            -}
         args -> throw $ errNumArgs "apply" 2 $ length args
+
+-- |Short-circuiting boolean `and` operation.
+boolAnd :: Env -> [Expr] -> ThrowsError (HData, Env)
+boolAnd env [] = return (HBool True, env)
+boolAnd env (expr:exprs) = do
+    (result, _) <- evalExpr env expr
+    case result of
+        HBool True -> boolAnd env exprs
+        HBool False -> return (HBool False, env)
+        _ -> throw $ errWrongType "and" "boolean"
+
+-- |Short-circuiting boolean `or` operation.
+boolOr :: Env -> [Expr] -> ThrowsError (HData, Env)
+boolOr env [] = return (HBool False, env)
+boolOr env (expr:exprs) = do
+    (result, _) <- evalExpr env expr
+    case result of
+        HBool True -> return (HBool True, env)
+        HBool False -> boolOr env exprs
+        _ -> throw $ errWrongType "or" "boolean"
