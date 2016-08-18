@@ -40,16 +40,12 @@ integerPat = "^-?[0-9]+$"
 floatPat = "^-?[0-9]+\\.[0-9]+$" -- TODO: Parse scientific notation.
 boolPat = "^(#t|#f)$"
 
--- FIXME: This doesn't actually work! For example, this regex matches strings
--- that contain the (unescaped) " character.
 stringPat = "^\"([^\"]|\\\")*\"$" 
 
--- FIXME: There must be a better way.
 varNamePat = "^([a-zA-Z]|-|[!@$%&*_=+|<>/?])([a-zA-Z0-9]|-|[!@$%&*_=+|<>/?])*$"
 
 -- |Parses a (supposedly) atomic expression to determine its type, and checks
 -- that it is indeed a legal atom.
--- TODO: Make this more robust.
 parseAtom :: Token -> ThrowsError Expr
 parseAtom token
     | (token =~ integerPat :: Bool) =

@@ -77,7 +77,7 @@ instance Eq HData where
 instance Show HData where
     show (HN num) = show num
     show (HBool bool) = show bool
-    show (HString string) = show string
+    show (HString string) = string
     show (HList list) = "(" ++ unwords (map show list) ++ ")"
     show (HQuote expr) = "'" ++ (show expr)
     show (HFunc _ _) = "procedure"
