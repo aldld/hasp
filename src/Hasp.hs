@@ -1,6 +1,7 @@
 module Hasp
 ( repl
 , initRepl
+, haspVersion
 ) where
 
 import Error
@@ -14,6 +15,9 @@ import Builtins
 import System.IO
 import System.Console.Haskeline
 import Control.Monad
+
+haspVersion :: String
+haspVersion = "0.1.0.0"
 
 printErrorAndContinue :: Env -> HaspError -> InputT IO ()
 printErrorAndContinue env err = do
@@ -32,7 +36,8 @@ printExprResults env (expr:exprs) = do
             when (result /= HNothing) $ outputStrLn $ show result
             printExprResults newEnv exprs
 
-handleError :: (ThrowsError a) -> (HaspError -> InputT IO ()) -> (a -> InputT IO ()) -> InputT IO ()
+handleError :: (ThrowsError a) -> (HaspError -> InputT IO ()) ->
+    (a -> InputT IO ()) -> InputT IO ()
 handleError (TE (Left err)) alternative _ = alternative err
 handleError (TE (Right val)) _ next = next val
 
@@ -53,6 +58,6 @@ repl env = do
 -- |Prints a welcome message and initializes the read-eval-print loop.
 initRepl :: IO ()
 initRepl = do
-    putStrLn "Welome to hasp!"
+    putStrLn $ "Welome to hasp! Version " ++ haspVersion
     runInputT defaultSettings $ repl globalEnv
 
