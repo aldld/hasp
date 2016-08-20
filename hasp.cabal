@@ -21,3 +21,4 @@ executable hasp
                      , regex-posix
                      , containers
                      , haskeline
+                     , mtl

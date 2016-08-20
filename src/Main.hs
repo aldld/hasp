@@ -6,6 +6,7 @@ import System.Exit
 import System.IO
 
 import Hasp
+import Builtins
 
 data Flag = Interactive -- -i
           | Version     -- -v
@@ -45,15 +46,15 @@ main = do
     args <- getArgs
 
     if args == []
-        then initRepl
+        then initRepl globalEnv
         else do
             let (actions, fileNames, errors) =
                     getOpt RequireOrder flags args
             opts <- foldl (>>=) (return defaultOptions) actions
             let Options { optInteractive = interactive } = opts
 
-            -- TODO: Process files, one-by-one, in fileNames
+            env <- runProcessInputFiles globalEnv fileNames
 
             if optInteractive opts
-                then initRepl
+                then initRepl env
                 else return ()
