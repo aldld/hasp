@@ -93,7 +93,6 @@ define :: Env -> [Expr] -> ThrowsError (HData, Env)
 define _ [] = throw $ errNumArgs "define" 2 0
 define _ (_:[]) = throw $ errNumArgs "define" 2 1
 
--- TODO: define shouldn't really return anything.
 define (Env envMap) [Atom (Id name), expr] = do
     (result, _) <- evalExpr (Env envMap) expr
     return (HNothing, Env $ Map.insert name result envMap)
