@@ -37,6 +37,10 @@ endString :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
 endString acc token curChar =
     genTokenSeq False (acc |> (token ++ [curChar])) ""
 
+fastForward :: Seq Token -> Token -> String -> ThrowsError (Seq Token)
+fastForward acc token input = genTokenSeq False acc token rest
+                        where rest = dropWhile (\c -> c /= '\n') input
+
 genTokenSeq :: Bool -> Seq Token -> Token -> String -> ThrowsError (Seq Token)
 genTokenSeq False acc "" "" = return acc
 genTokenSeq False acc token "" = return (acc |> token)
@@ -47,6 +51,7 @@ genTokenSeq False acc token (curChar:nextInput)
     | curChar `elem` "()"    = keepDelim acc token curChar nextInput
     | curChar `elem` " \n\t" = dropDelim acc token curChar nextInput
     | curChar == '"'         = startString acc token curChar nextInput
+    | curChar == ';'         = fastForward acc token nextInput
     | otherwise              = appendChar False acc token curChar nextInput
 
 genTokenSeq True acc token (curChar:nextInput)
