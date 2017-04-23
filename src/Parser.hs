@@ -40,7 +40,7 @@ integerPat = "^-?[0-9]+$"
 floatPat = "^-?[0-9]+\\.[0-9]+$" -- TODO: Parse scientific notation.
 boolPat = "^(#t|#f)$"
 
-stringPat = "^\"([^\"]|\\\")*\"$" 
+stringPat = "^\"([^\"]|\\\")*\"$"
 
 varNamePat = "^([a-zA-Z]|-|[!@$%&*_=+|<>/?])([a-zA-Z0-9]|-|[!@$%&*_=+|<>/?])*$"
 
@@ -89,12 +89,13 @@ parseAtom token
 traverseExprTokens :: Stack (Seq Expr) -> Seq Expr -> [Token] ->
     ThrowsError (Seq Expr)
 traverseExprTokens [] acc [] = return acc
-traverseExprTokens (top:rest) _ [] = throw (SyntaxError "Missing )")
+traverseExprTokens (top:rest) _ [] = throw $ SyntaxError "Unclosed parenthesis"
 
-traverseExprTokens stack acc ("(":tokens) = 
+traverseExprTokens stack acc ("(":tokens) =
     traverseExprTokens (push empty stack) acc tokens
 
-traverseExprTokens [] acc ( ")":tokens) = throw (SyntaxError "Extra )")
+traverseExprTokens [] acc ( ")":tokens) =
+    throw $ SyntaxError "Unexpected token \")\""
 traverseExprTokens (top:[]) acc ( ")":tokens) =
     traverseExprTokens [] (acc |> (List $ toList top)) tokens
 traverseExprTokens (top:rest) acc ( ")":tokens) =
