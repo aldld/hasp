@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import Error
 import Expressions
 import DataTypes
+import Control.Monad
 
 evalArgExprs_recurse :: [HData] -> Env -> [Expr] -> ThrowsError [HData]
 evalArgExprs_recurse acc env [] = return acc
@@ -82,7 +83,8 @@ defaultSK = Map.fromList
     , ("if", SK False ifStmt)
     , ("apply", SK False applyHFunc)
     , ("and", SK False boolAnd)
-    , ("or", SK False boolOr) ]
+    , ("or", SK False boolOr)
+    , ("let", SK False letStmt) ]
 
 
 -- |define keyword used for creating global variable name bindings. This
@@ -164,6 +166,38 @@ ifStmt env [condExpr, thenExpr, elseExpr] = do
                 (show val) ++ "`"
 
 ifStmt _ args = throw . errNumArgs "if" 3 $ length args
+
+mapBinding :: Env -> Expr -> ThrowsError (Identifier, HData)
+mapBinding env (List ((Atom (Id name)):(expr:[]))) = do
+    (result, _) <- evalExpr env expr
+    return (name, result)
+
+mapBinding env _ = throw $ SyntaxError "Malformed let expression."
+
+parseLetBindings :: Env -> Expr -> ThrowsError (Map.Map Identifier HData)
+parseLetBindings env (List listExpr) =
+    (liftM Map.fromList) $ mapM (mapBinding env) listExpr
+
+parseLetBindings _ _ = throw $ SyntaxError "Malformed let expression."
+
+-- |let statement. Evaluates the given expression with the specified name
+-- bindings, possibly shadowing any previously-bound variable names.
+-- Syntax: (let ((<name> <value>) ...) <expr>)
+letStmt :: Env -> [Expr] -> ThrowsError (HData, Env)
+letStmt env args =
+    case args of
+        []  -> throw $ errNumArgs "let" 2 0
+        [_] -> throw $ errNumArgs "let" 2 1
+        [bindingsList, expr] -> do
+            bindings <- parseLetBindings env bindingsList
+            let boundEnv = Env $ Map.union bindings (toMap env)
+
+            -- Evaluate the result of the expression, discarding the generated
+            -- environment and returning the original.
+            (result, _) <- evalExpr boundEnv expr
+            return (result, env)
+
+        args -> throw $ errNumArgs "let" 2 $ length args
 
 -- |apply statement. Applies the function specified by the first argument to the
 -- values provided as a list in the second argument.

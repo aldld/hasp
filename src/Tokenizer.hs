@@ -22,7 +22,7 @@ keepDelim acc "" char = genTokenSeq False (acc |> [char]) ""
 keepDelim acc token char = genTokenSeq False (acc |> token |> [char]) ""
 
 dropDelim :: Seq Token -> Token -> Char -> String -> ThrowsError (Seq Token)
-dropDelim acc "" char = genTokenSeq False acc "" 
+dropDelim acc "" char = genTokenSeq False acc ""
 dropDelim acc token char = genTokenSeq False (acc |> token) ""
 
 appendChar :: Bool -> Seq Token -> Token -> Char -> String ->
